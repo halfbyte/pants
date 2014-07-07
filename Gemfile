@@ -4,7 +4,7 @@ source 'https://rubygems.org'
 gem 'rails', '4.1.4'
 gem 'pg'
 gem 'quiet_assets'
-gem 'puma'
+gem 'passenger'
 gem 'rack-cache', :require => 'rack/cache'
 
 # Frontend

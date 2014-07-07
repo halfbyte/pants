@@ -12,6 +12,8 @@ set :repo_url, 'git@github.com:halfbyte/pants.git'
 set :branch, 'uberspace'
 set :deploy_via, :remote_cache
 
+set :home, '/home/halfbyte'
+
 # Default branch is :master
 # ask :branch, proc { `git rev-parse --abbrev-ref HEAD`.chomp }.call
 
@@ -42,16 +44,64 @@ set :linked_files, %w{.env.production}
 # Default value for keep_releases is 5
 set :keep_releases, 5
 
+set :passenger_port, rand(61000-32768+1)+32768
+
 # set :chruby_ruby, '2.1'
 
-namespace :deploy do
-  desc 'Restart application'
-  task :restart do
-    on roles(:app) do
-      execute :touch, release_path.join('tmp/restart.txt')
+namespace :daemontools do
+  task :setup_daemon do
+    daemon_script = <<-EOF
+#!/bin/bash
+export HOME=#{fetch :home}
+source $HOME/.bash_profile
+cd #{fetch :deploy_to}/current
+exec bundle exec passenger start -p #{fetch :passenger_port} -e production 2>&1
+EOF
+
+    log_script = <<-EOF
+#!/bin/sh
+exec multilog t ./main
+EOF
+
+    run "mkdir -p #{fetch :home}/etc/run-rails-#{fetch :application}"
+    run "mkdir -p #{fetch :home}/etc/run-rails-#{fetch :application}/log"
+    put daemon_script, "#{fetch :home}/etc/run-rails-#{fetch :application}/run"
+    put log_script, "#{fetch :home}/etc/run-rails-#{fetch :application}/log/run"
+    run "chmod +x #{fetch :home}/etc/run-rails-#{fetch :application}/run"
+    run "chmod +x #{fetch :home}/etc/run-rails-#{fetch :application}/log/run"
+    run "ln -nfs #{fetch :home}/etc/run-rails-#{fetch :application} #{fetch :home}/service/rails-#{fetch :application}"
+
+  end
+end
+
+
+ namespace :apache do
+    task :setup_reverse_proxy do
+      htaccess = <<-EOF
+RewriteEngine On
+RewriteRule ^(.*)$ http://localhost:#{fetch :passenger_port}/$1 [P]
+EOF
+      path = fetch(:domain) ? "/var/www/virtual/#{fetch :user}/#{fetch :domain}" : "#{fetch :home}/html"
+      run "mkdir -p #{path}"
+      put htaccess, "#{path}/.htaccess"
+      run "chmod +r #{path}/.htaccess"
+      run "uberspace-add-domain -qwd #{fetch :domain} ; true" if fetch(:domain)
     end
   end
 
+
+
+namespace :deploy do
+  task :start do
+    run "svc -u #{fetch :home}/service/rails-#{fetch :application}"
+  end
+  task :stop do
+    run "svc -d #{fetch :home}/service/rails-#{fetch :application}"
+  end
+  task :restart do
+    run "svc -du #{fetch :home}/service/rails-#{fetch :application}"
+  end
+  
   after :publishing, :restart
 
   # after :restart, :clear_cache do
