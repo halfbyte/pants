@@ -63,13 +63,17 @@ EOF
 exec multilog t ./main
 EOF
 
-    run "mkdir -p #{fetch :home}/etc/run-rails-#{fetch :application}"
-    run "mkdir -p #{fetch :home}/etc/run-rails-#{fetch :application}/log"
-    put daemon_script, "#{fetch :home}/etc/run-rails-#{fetch :application}/run"
-    put log_script, "#{fetch :home}/etc/run-rails-#{fetch :application}/log/run"
-    run "chmod +x #{fetch :home}/etc/run-rails-#{fetch :application}/run"
-    run "chmod +x #{fetch :home}/etc/run-rails-#{fetch :application}/log/run"
-    run "ln -nfs #{fetch :home}/etc/run-rails-#{fetch :application} #{fetch :home}/service/rails-#{fetch :application}"
+    on roles :web do
+      execute "mkdir", "-p #{fetch :home}/etc/run-rails-#{fetch :application}"
+      execute "mkdir", "-p #{fetch :home}/etc/run-rails-#{fetch :application}/log"
+      upload! StringIO.new(daemon_script), "#{fetch :home}/etc/run-rails-#{fetch :application}/run"
+      upload! StringIO.new(log_script), "#{fetch :home}/etc/run-rails-#{fetch :application}/log/run"
+      execute "chmod", "+x #{fetch :home}/etc/run-rails-#{fetch :application}/run"
+      execute "chmod", "+x #{fetch :home}/etc/run-rails-#{fetch :application}/log/run"
+      execute "ln", "-nfs #{fetch :home}/etc/run-rails-#{fetch :application} #{fetch :home}/service/rails-#{fetch :application}"      
+    end
+    
+
 
   end
 end
@@ -82,10 +86,12 @@ RewriteEngine On
 RewriteRule ^(.*)$ http://localhost:#{fetch :passenger_port}/$1 [P]
 EOF
       path = fetch(:domain) ? "/var/www/virtual/#{fetch :user}/#{fetch :domain}" : "#{fetch :home}/html"
-      run "mkdir -p #{path}"
-      put htaccess, "#{path}/.htaccess"
-      run "chmod +r #{path}/.htaccess"
-      run "uberspace-add-domain -qwd #{fetch :domain} ; true" if fetch(:domain)
+      on roles :web do
+      
+        execute "mkdir", "-p #{path}"
+        upload! StringIO.new(htaccess), "#{path}/.htaccess"
+        execute "chmod", "+r #{path}/.htaccess"
+      end
     end
   end
 
@@ -93,13 +99,19 @@ EOF
 
 namespace :deploy do
   task :start do
-    run "svc -u #{fetch :home}/service/rails-#{fetch :application}"
+    on roles :web do
+      execute "svc", "-u #{fetch :home}/service/rails-#{fetch :application}"
+    end
   end
   task :stop do
-    run "svc -d #{fetch :home}/service/rails-#{fetch :application}"
+    on roles :web do
+      execute "svc", "-d #{fetch :home}/service/rails-#{fetch :application}"
+    end
   end
   task :restart do
-    run "svc -du #{fetch :home}/service/rails-#{fetch :application}"
+    on roles :web do
+      execute "svc", "-du #{fetch :home}/service/rails-#{fetch :application}"
+    end
   end
   
   after :publishing, :restart
