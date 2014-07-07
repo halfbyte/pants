@@ -8,14 +8,15 @@ lock '3.2.1'
 
 set :application, 'pants'
 set :stages, ["production"]
-set :repo_url, 'git@github.com:hmans/pants.git'
+set :repo_url, 'git@github.com:halfbyte/pants.git'
+set :branch, 'uberspace'
 set :deploy_via, :remote_cache
 
 # Default branch is :master
 # ask :branch, proc { `git rev-parse --abbrev-ref HEAD`.chomp }.call
 
 # Default deploy_to directory is /var/www/my_app
-set :deploy_to, '/home/pants'
+set :deploy_to, '/var/www/virtual/halfbyte/rails/pants'
 
 # Default value for :scm is :git
 # set :scm, :git
@@ -41,7 +42,7 @@ set :linked_files, %w{.env.production}
 # Default value for keep_releases is 5
 set :keep_releases, 5
 
-set :chruby_ruby, '2.1'
+# set :chruby_ruby, '2.1'
 
 namespace :deploy do
   desc 'Restart application'
