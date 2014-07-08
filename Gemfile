@@ -39,7 +39,9 @@ gem 'sucker_punch'
 gem 'fist_of_fury', '~> 0.2.0'
 
 # Monitoring
-gem 'appsignal'
+# gem 'appsignal'
+
+gem "sentry-raven", :git => "https://github.com/getsentry/raven-ruby.git"
 
 # Development & Testing only
 #
