@@ -12,8 +12,13 @@ class Post < ActiveRecord::Base
   #
   before_validation do
     if body_changed?
+      # Resolve hashtag links
+      body_with_hashtags = body.gsub(TagExtractor::REGEX) do
+        "<a href=\"#{user.try(:url)}/tag/#{$1.downcase}\" class=\"hashtag\">##{$1}</a>"
+      end
+
       # Render body to HTML
-      self.body_html = Formatter.new(body).complete.to_s
+      self.body_html = Formatter.new(body_with_hashtags).complete.to_s
     end
 
     # Extract and save tags
@@ -89,14 +94,29 @@ class Post < ActiveRecord::Base
       slug
     end
 
+    def to_sentences
+      to_nokogiri.text.split(/((?<=[a-z0-9)][.?!])|(?<=[a-z0-9][.?!]"))\s+(?="?[A-Za-z])/).reject {|part| part.blank? }
+    end
+
+    def to_nokogiri(stripped = true)
+      Nokogiri::HTML(body_html).tap do |n|
+        if stripped
+          n.css('blockquote').remove
+        end
+      end
+    end
+
     def to_summary(target = 60)
       Rails.cache.fetch("post-summary-#{id}-#{updated_at}", expires_in: 1.day) do
-        sentences = Nokogiri::HTML(body_html).text.split(/((?<=[a-z0-9)][.?!])|(?<=[a-z0-9][.?!]"))\s+(?="?[A-Za-z])/).reject {|part| part.blank? }
-        sentences.inject("") do |v, sentence|
+        to_sentences.inject("") do |v, sentence|
           break v if v.length > target
           v << " " << sentence
         end
       end.strip.html_safe
+    end
+
+    def to_title
+      (to_nokogiri.css('h1, h2').first.try(:text) || to_sentences.first).try(:strip)
     end
   end
 
