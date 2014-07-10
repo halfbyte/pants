@@ -54,13 +54,13 @@ label {
 }
 
 legend {
-  font-weight: bold;
+  @extend h3;
   &+* {
     padding-top: 30px;
   }
 }
 
-.form-actions {
+form .actions {
   margin-bottom: 50px;
 }
 

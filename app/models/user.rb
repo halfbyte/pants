@@ -1,8 +1,6 @@
 class User < ActiveRecord::Base
   has_secure_password validations: false
 
-  dragonfly_accessor :image
-
   # Scopes
   #
   scope :hosted, -> { where(hosted: true) }
@@ -48,19 +46,39 @@ class User < ActiveRecord::Base
     source: :user
 
   before_validation do
+    self.display_name ||= domain
     self.url ||= domain.try(:with_http)
   end
 
-  def external_image_url
-    URI.join(url, '/user.jpg').to_s
-  end
+  concerning :Images do
+    included do
+      dragonfly_accessor :image
+      dragonfly_accessor :flair
+    end
 
-  def local_image
-    hosted? ? image : Dragonfly.app.fetch_url(external_image_url)
-  end
+    def external_image_url
+      URI.join(url, '/user.jpg').to_s
+    end
 
-  def local_thumbnail
-    local_image.try(:thumb, '300x300#')
+    def external_flair_url
+      URI.join(url, '/user-flair.jpg').to_s
+    end
+
+    def local_image
+      hosted? ? image : Dragonfly.app.fetch_url(external_image_url)
+    end
+
+    def local_flair
+      hosted? ? flair : Dragonfly.app.fetch_url(external_flair_url)
+    end
+
+    def local_thumbnail
+      local_image.try(:thumb, '300x300#')
+    end
+
+    def local_cropped_flair
+      local_flair.try(:thumb, '800x250#')
+    end
   end
 
   def add_to_timeline(post)
@@ -87,7 +105,7 @@ class User < ActiveRecord::Base
   end
 
   def ping!(body)
-    UserPinger.new.async.perform(url, body)
+    UserPinger.perform_async(url, body)
   end
 
   concerning :Polling do
@@ -100,7 +118,7 @@ class User < ActiveRecord::Base
     #
     def poll!
       # Never poll for hosted users.
-      unless hosted?
+      unless hosted? || followings.empty?
         posts_url = URI.join(url, '/posts.json')
         posts_json = HTTParty.get(posts_url, query: { updated_since: last_polled_at.try(:to_i) })
 
@@ -132,39 +150,9 @@ class User < ActiveRecord::Base
   end
 
   class << self
-    # The following attributes will be copied from user JSON responses
-    # into local Post instances.
-    #
-    ACCESSIBLE_JSON_ATTRIBUTES = %w{
-      display_name
-      domain
-      locale
-      url
-    }
-
-    def fetch_from(url)
-      uri = URI.parse(url.with_http)
-      json = HTTParty.get(URI.join(uri, '/user.json').to_s)
-
-      # Sanity checks
-      if json['domain'] != uri.host
-        raise "User JSON didn't match expected host."
-      end
-
-      if json['url'] != URI.join(uri, '/').to_s
-        raise "User JSON didn't match expected URL."
-      end
-
-      # Upsert user
-      user = where(domain: json['domain']).first_or_initialize
-      user.attributes = json.slice(*ACCESSIBLE_JSON_ATTRIBUTES)
-      user.save!
-
-      user
-    end
-
-    def [](v)
-      find_by(domain: v)
+    def [](url)
+      host = URI.parse(url).host
+      find_by(domain: host)
     end
   end
 end

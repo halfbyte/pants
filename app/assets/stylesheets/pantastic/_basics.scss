@@ -18,48 +18,21 @@ section#main {
   @extend %collapse;
 }
 
+// MISC TWEAKS
+
+// images should never be wider than their containing element
+img {
+  max-width: 100%;
+}
+
+
+
 // FONTAWESOME
 
 i.fa {
   margin-right: 0.3em;
 }
 
-
-// HEADER
-
-header[role="primary"] {
-  margin-bottom: 30px;
-
-  span {
-    @extend %container;
-    @extend %reset-links;
-    position: relative;
-  }
-
-  .site-name {
-    font-weight: bold;
-    font-size: 40px;
-    line-height: 40px;
-    padding: 20px 0 5px 0;
-    text-transform: uppercase;
-  }
-
-  .site-domain {
-    @extend %light;
-    font-size: 20px;
-    line-height: 25px;
-  }
-
-  .site-image {
-    img {
-      @extend %slanted;
-      position: absolute;
-      right: 0;
-      width: 60px;
-      height: 60px;
-    }
-  }
-}
 
 
 // FOOTER
@@ -89,6 +62,11 @@ nav[role="primary"] {
   }
 }
 
+nav[role="secondary"] {
+  // for now...
+  @extend nav[role="primary"];
+}
+
 nav[role="pagination"] {
   li {
     display: inline;
@@ -98,21 +76,28 @@ nav[role="pagination"] {
   }
 }
 
-// HEADINGS
-
-h1, h2 {
-  @extend %reset-links;
-  @extend %nav-text;
-  color: $color-text;
-  font-size: 150%;
-  font-weight: bold;
-  margin-top: 40px;
-  margin-bottom: 40px;
-}
-
 
 // NOTES
 
 .note {
   @extend %note;
+}
+
+
+// ACTIONS
+
+ul.actions {
+  @extend p;
+
+  li {
+    display: inline;
+    >a:first-child { @extend %button }
+  }
+}
+
+
+// STATS
+
+ul.stats {
+  font-size: 150%;
 }

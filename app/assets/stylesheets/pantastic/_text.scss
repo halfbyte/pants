@@ -15,19 +15,37 @@ em { font-style: italic; }
 .error { color: red }
 
 
+// HEADINGS
+
+%heading {
+  font-weight: bold;
+  margin-top: 30px;
+  margin-bottom: 15px;
+  color: $color-text;
+}
+
+h1, h2, h3, h4, h5, h5 {
+  @extend %heading;
+}
+
+h1 {
+  font-size: 150%;
+}
+
+h2 {
+  font-size: 120%;
+}
+
+
 // The following prototype is mixed into elements that display
 // article text.
 
 %text-formatting {
   h1, h2, h3, h4, h5, h6 {
-    font-weight: bold;
-    font-size: inherit;
-    margin-top: 30px;
-    margin-bottom: 15px;
+    @extend %heading;
     display: table;
     background-color: mix($color-text, $color-background, 10%);
     padding: 3px 15px;
-    color: $color-text;
 
     // reset styling of hashtags
     a.hashtag {
@@ -37,14 +55,7 @@ em { font-style: italic; }
   }
 
   h1 {
-    font-size: 150%;
-  }
-
-  h2 {
-    font-size: 120%;
-  }
-
-  h3 {
+    text-transform: uppercase;
   }
 
   ul {

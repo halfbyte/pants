@@ -8,6 +8,7 @@ Rails.application.routes.draw do
 
   # User
   resource :user, only: [:show, :edit, :update]
+  get 'user-flair' => 'users#flair', format: 'jpg'
 
   # Friendships
   resources :friendships, path: 'friends'
@@ -25,6 +26,12 @@ Rails.application.routes.draw do
   # Daily archives
   get ':year/:month/:day' => 'posts#day', as: :day,
     constraints: { year: /\d+/, month: /\d+/, day: /\d+/ }
+
+  # Server Administration
+  get 'server' => 'server#dashboard'
+  namespace :server do
+    resources :users
+  end
 
   # Legacy
   get '/posts/:id' => 'posts#show'
