@@ -11,13 +11,16 @@ Rails.application.routes.draw do
   get 'user-flair' => 'users#flair', format: 'jpg'
 
   # Friendships
-  resources :friendships, path: 'friends'
+  resources :friendships, path: 'following'
 
   # Timeline
   get 'network' => 'timeline_entries#index', as: :network
   delete 'network/incoming' => 'timeline_entries#hide_all_incoming'
   delete 'network/:id' => 'timeline_entries#destroy', as: :timeline_entry
   get 'network/incoming' => 'timeline_entries#incoming', as: :incoming_network
+
+  # Remote posts
+  get 'remote/:url' => 'posts#remote', as: :remote_post, constraints: { url: /.+/ }
 
   # Tag pages
   get 'tag/:tag' => 'posts#tagged', as: :tagged_posts
@@ -31,11 +34,16 @@ Rails.application.routes.draw do
   get 'server' => 'server#dashboard'
   namespace :server do
     resources :users
+    resources :pings
   end
+
+  # API Discovery
+  get 'pants' => 'application#discovery', format: [:json], as: :discovery
 
   # Legacy
   get '/posts/:id' => 'posts#show'
   get ':year-:month-:day' => redirect("/%{year}/%{month}/%{day}")
+  get '/friends' => redirect("/following")
   get '/timeline' => redirect("/network")
   get '/timeline/incoming' => redirect("/network/incoming")
   get '/timeline/all' => redirect("/network/incoming")

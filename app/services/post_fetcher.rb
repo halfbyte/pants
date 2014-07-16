@@ -11,57 +11,79 @@
 # of local followers of the post's author.
 #
 class PostFetcher
-  include BackgroundJob
+  include Backgroundable
 
-  def perform(url, opts = {})
-    with_appsignal do
-      Rails.logger.info "Fetching post: #{url}"
-      url = expand_url(url)
-      json = fetch_json(url)
+  def initialize(url, opts = {})
+    @url = expand_url(url)
+    @opts = opts
+    @uri = URI.parse(@url)
+  end
 
-      if json_sane?(json, url)
-        # fetch/update user first
-        UserFetcher.perform(URI.parse(url).host)
+  def fetch!
+    Rails.logger.info "Fetching post: #{@url}"
 
-        # deal with post
-        post = upsert_post(json)
-        add_to_local_timelines(post)
+    # TODO: determine if we should _really_ fetch the post, as it may not
+    #       always be necessary.
 
-        if opts[:recipient].present?
-          opts[:recipient].add_to_timeline(post)
-        end
+    @json = fetch_json
 
-        post
+    if json_sane?
+      # fetch/update user first
+      UserFetcher.new(@uri.host).fetch!
+
+      # deal with post
+      @post = Post.from_json!(@json)
+
+      PostPusher.new(@post).push_to_local_timelines
+
+      if @opts[:recipient].present?
+        @opts[:recipient].add_to_timeline(@post)
       end
+
+      @post
     end
   end
 
   def expand_url(url)
-    url = url.with_http
-    url.ends_with?(".json") ? url : "#{url}.json"
+    url.with_http
   end
 
-  def fetch_json(url)
-    HTTParty.get(url)
-  end
+  def fetch_json
+    response = HTTParty.get(@url)
 
-  def json_sane?(json, url)
-    full, guid, domain, slug = %r{^https?://((.+)/(.+?))(\.json)?$}.match(url).to_a
-
-    raise "Post JSON invalid: guid doesn't match" if json['guid'] != guid
-    raise "Post JSON invalid: domain doesn't match" if json['domain'] != domain
-    raise "Post JSON invalid: slug doesn't match" if json['slug'] != slug
-
-    true
-  end
-
-  def upsert_post(json)
-    with_database do
-      Post.from_json!(json)
+    case response.content_type
+    when 'application/json'
+      return response
+    when 'text/html'
+      if json_url = discover_json_url(response.body)
+        Rails.logger.info "Discovered JSON URL #{json_url} for #{@url}"
+        return HTTParty.get(json_url)
+      else
+        # try appending .json as a fallback; mostly to remain compatible
+        # with earlier versions of pants.
+        Rails.logger.info "Trying #{@url}.json as a fallback"
+        return HTTParty.get("#{@url}.json")
+      end
+    else
+      raise "Invalid content type #{response.content_type} for post #{@url}"
     end
   end
 
-  def add_to_local_timelines(post)
-    TimelineManager.new.add_post_to_local_timelines(post)
+  def discover_json_url(html)
+    if doc = Nokogiri::HTML(html)
+      if link_tag = doc.css('link[rel="alternate"][type="application/json"]').first
+        link_tag[:href]
+      end
+    end
+  end
+
+  def json_sane?
+    full, guid, domain, slug = %r{^https?://((.+)/(.+?))(\.json)?$}.match(@url).to_a
+
+    raise "Post JSON invalid: guid doesn't match"   if @json['guid'] != guid
+    raise "Post JSON invalid: domain doesn't match" if @json['domain'] != domain
+    raise "Post JSON invalid: slug doesn't match"   if @json['slug'] != slug
+
+    true
   end
 end

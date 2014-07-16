@@ -8,11 +8,11 @@ class FriendshipsController < ApplicationController
   end
 
   def create
-    if user = UserFetcher.perform(params.require(:friend).require(:url))
+    if user = UserFetcher.new(params.require(:friend).require(:url)).fetch!
       @friendship = current_site.add_friend(user)
     end
 
-    flash[:notice] = "#{user.domain} has been added to your friends."
+    flash[:notice] = t('.success', domain: user.domain)
     respond_with @friendship, location: :friendships
   rescue StandardError => e
     Rails.env.development? ?
@@ -22,7 +22,7 @@ class FriendshipsController < ApplicationController
 
   def destroy
     @friendship.destroy
-    flash[:notice] = "#{@friendship.friend.domain} has been removed from your friends."
+    flash[:notice] = t('.success', domain: @friendship.friend.domain)
     respond_with @friendship
   end
 end

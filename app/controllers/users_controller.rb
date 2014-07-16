@@ -15,7 +15,7 @@ class UsersController < ApplicationController
       format.css { }
       format.jpg do
         job = if @user.image.present?
-          @user.image.thumb('300x300#')
+          @user.local_thumbnail
         else
           Dragonfly.app.generate(:plain, 1, 1,
             'format' => 'png',
@@ -56,6 +56,7 @@ private
 
   def user_params
     params.require(:user).permit(:display_name, :locale, :password, :password_confirmation,
-      :image, :remove_image, :flair, :remove_flair)
+      :image, :remove_image, :flair, :remove_flair,
+      :web_links_text, :friends_visible)
   end
 end

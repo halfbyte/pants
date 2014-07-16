@@ -1,5 +1,6 @@
 - content_for :header do
-  meta property="og:title" content=@post.to_title
+  link rel="alternate" type="application/json" title="This post as JSON" href=post_url(@post, format: 'json')
+  meta property="og:title" content=@post.title
   meta property="og:type" content="article"
   meta property="og:image" content=@post.user.try(:external_image_url)
   meta property="og:url" content=post_url(@post)
@@ -11,3 +12,10 @@
   section.post-replies
     h2 Replies
     = render @post.replies.order('published_at DESC'), hide_reply_references: true
+
+- if @post.referenced_by.any?
+  .note
+    h4 Replies on the Web
+    ul
+      - @post.referenced_by.each do |url|
+        li = link_to url.without_http, url.with_http, rel: 'nofollow', class: 'u-comment'

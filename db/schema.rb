@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20140709105913) do
+ActiveRecord::Schema.define(version: 20140714224815) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -26,25 +26,36 @@ ActiveRecord::Schema.define(version: 20140709105913) do
   add_index "friendships", ["user_id", "friend_id"], name: "index_friendships_on_user_id_and_friend_id", unique: true, using: :btree
   add_index "friendships", ["user_id"], name: "index_friendships_on_user_id", using: :btree
 
+  create_table "pings", force: true do |t|
+    t.integer  "user_id"
+    t.integer  "post_id"
+    t.string   "source"
+    t.string   "target"
+    t.datetime "created_at"
+  end
+
+  add_index "pings", ["created_at"], name: "index_pings_on_created_at", using: :btree
+  add_index "pings", ["post_id", "created_at"], name: "index_pings_on_post_id_and_created_at", using: :btree
+  add_index "pings", ["user_id", "created_at"], name: "index_pings_on_user_id_and_created_at", using: :btree
+
   create_table "posts", force: true do |t|
-    t.string   "sha",             limit: 40
     t.string   "slug"
     t.string   "domain"
     t.text     "body"
     t.text     "body_html"
     t.datetime "created_at"
     t.datetime "updated_at"
-    t.text     "tags",                       default: [], array: true
-    t.text     "previous_shas",              default: [], array: true
+    t.text     "tags",            default: [], array: true
     t.datetime "published_at"
     t.string   "guid"
     t.datetime "edited_at"
     t.string   "url"
     t.string   "referenced_guid"
+    t.string   "title"
+    t.text     "referenced_by",   default: [], array: true
   end
 
   add_index "posts", ["guid"], name: "index_posts_on_guid", unique: true, using: :btree
-  add_index "posts", ["previous_shas"], name: "index_posts_on_previous_shas", using: :gin
   add_index "posts", ["referenced_guid"], name: "index_posts_on_referenced_guid", using: :btree
   add_index "posts", ["tags"], name: "index_posts_on_tags", using: :gin
 
@@ -76,6 +87,8 @@ ActiveRecord::Schema.define(version: 20140709105913) do
     t.datetime "last_polled_at"
     t.string   "flair_uid"
     t.boolean  "admin",                          default: false, null: false
+    t.text     "web_links",                      default: [],                 array: true
+    t.boolean  "friends_visible",                default: true,  null: false
   end
 
   add_index "users", ["domain"], name: "index_users_on_domain", unique: true, using: :btree

@@ -1,9 +1,11 @@
 class ApplicationController < ActionController::Base
   # Prevent CSRF attacks by raising an exception.
   # For APIs, you may want to use :null_session instead.
-  protect_from_forgery with: :exception
+  #
+  protect_from_forgery with: :null_session
 
   # By default, only respond to HTML requests.
+  #
   respond_to :html
 
   concerning :ErrorHandling do
@@ -13,7 +15,11 @@ class ApplicationController < ActionController::Base
       rescue_from CanCan::AccessDenied do |exception|
         @error = exception.message
         @page_title = "Error"
-        render 'error', status: 403, formats: [:html]
+
+        respond_to do |format|
+          format.html { render 'error', status: 403, formats: [:html] }
+          format.json { render json: { error: 'Unauthorized' }, status: 403 }
+        end
       end
     end
 
@@ -26,7 +32,7 @@ class ApplicationController < ActionController::Base
 
   before_filter do
     if current_site.blank?
-      redirect_to 'http://hmans.io/lrn569'
+      redirect_to Pants.config.server.unknown_site_redirect_url
     elsif current_site.domain != request.host
       redirect_to(host: current_site.domain, status: 302)
     end
@@ -34,6 +40,13 @@ class ApplicationController < ActionController::Base
 
   before_filter do
     I18n.locale = current_site.locale || 'en'
+  end
+
+  def discovery
+    # Renders some JSON with information relevant to API clients.
+    respond_to do |format|
+      format.json {}
+    end
   end
 
   concerning :CurrentUser do
@@ -45,6 +58,13 @@ class ApplicationController < ActionController::Base
       @current_user ||= begin
         if session[:current_user].present?
           User.find_by!(domain: session[:current_user])
+        elsif params[:token].present?
+          data = ApiTokens.verify(params[:token])
+          if current_site.id == data[:site] && Time.now < data[:expires]
+            User.find(data[:user])
+          else
+            raise "Invalid API token"
+          end
         elsif cookies[:login_user].present? && cookies[:login_domain] == current_site.domain
           user = User.find_by!(domain: cookies[:login_user])
           session[:current_user] = user.domain
@@ -90,5 +110,20 @@ class ApplicationController < ActionController::Base
     def page_title
       @page_title ||= t(".page_title", default: '')
     end
+  end
+
+  concerning :CanonicalUrls do
+    def with_canonical_url(url)
+      if request.url != url
+        flash.keep
+        redirect_to(url, status: 301)
+      else
+        yield
+      end
+    end
+  end
+
+  def current_ability
+    @current_ability ||= Ability.new(current_user, current_site)
   end
 end

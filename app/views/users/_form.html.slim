@@ -2,6 +2,7 @@
   = field_set_tag "Basic Settings" do
     = f.input :display_name
     = f.input :locale, collection: [['English', 'en'], ['German', 'de']], include_blank: false
+    = f.input :friends_visible
 
   = field_set_tag "Your Picture" do
     - if user.image.present?
@@ -16,6 +17,12 @@
         = image_tag user.local_cropped_flair.url
         = f.input :remove_flair, as: :boolean
     = f.input :flair, as: :file, label: false
+
+  - if current_site.admin?
+    = field_set_tag "Web Links" do
+      p How about listing your other profiles on the web? Just enter their URLs into the following
+        field. This will also enable <a href="https://indieauth.com/">IndieAuth</a> login for your site.
+      = f.input :web_links_text, as: :text, input_html: { rows: 3 }
 
   = field_set_tag "New Password" do
     p If you want to change your password, please enter your new password here.

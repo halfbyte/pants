@@ -1,9 +1,9 @@
 class PostsController < ApplicationController
   # Add a couple of additional response formats.
   #
-  respond_to :json, only: [:show, :index]
+  respond_to :json
   respond_to :atom, only: [:index, :tagged]
-  respond_to :js, only: [:index]
+  respond_to :js, only: [:index, :tagged]
 
   load_and_authorize_resource :post,
     find_by: :slug,
@@ -12,7 +12,7 @@ class PostsController < ApplicationController
   # Hook up background processors to specific actions.
   #
   after_filter :fetch_referenced_posts, only: [:create, :update]
-  after_filter :push_to_local_followers, only: [:create, :update]
+  after_filter :push_post, only: [:create, :update]
 
   def index
     @posts = @posts.latest.includes(:user)
@@ -52,16 +52,27 @@ class PostsController < ApplicationController
   end
 
   def show
-    canonical_path = post_path(@post, format: params[:format])
-    if request.path != canonical_path
-      redirect_to canonical_path, status: 301 and return
+    with_canonical_url(post_url(@post, format: params[:format])) do
+      @page_title = @post.title
+
+      respond_with @post do |format|
+        format.md { render text: @post.body }
+      end
+    end
+  end
+
+  def remote
+    @url = params[:url]
+
+    # First, try to load the post from the database
+    @post = Post[@url]
+
+    # If we haven't seen this post yet, or its last update was more than 1h ago, fetch it
+    if @post.nil? || @post.updated_at < 1.hour.ago
+      @post = PostFetcher.new(params[:url]).fetch!
     end
 
-    @page_title = @post.to_title
-
-    respond_with @post do |format|
-      format.md { render text: @post.body }
-    end
+    render 'show'
   end
 
   def new
@@ -75,9 +86,6 @@ class PostsController < ApplicationController
     if @post.valid?
       # save the post
       @post.update_attributes(url: post_url(@post))
-
-      # send pings for this post
-      PostPinger.new.async.perform(@post)
 
       # add post to my own timeline
       current_site.add_to_timeline(@post)
@@ -96,7 +104,6 @@ class PostsController < ApplicationController
 
     if @post.valid?
       @post.update_attributes(url: post_url(@post))
-      PostPinger.new.async.perform(@post)
     end
 
     respond_with @post
@@ -114,17 +121,15 @@ private
   end
 
   def fetch_referenced_posts
-    if @post.referenced_guid.present?
-      # Fetch referenced post
-      PostFetcher.new.async.perform(@post.referenced_guid.with_http)
-
-      # Ping referenced site with new post
-      domain, slug = @post.referenced_guid.split '/'
-      UserPinger.new.async.perform(domain, url: @post.url)
+    if @post.valid?
+      if @post.referenced_guid.present?
+        # Fetch referenced post
+        PostFetcher.new(@post.referenced_guid.with_http).async.fetch!
+      end
     end
   end
 
-  def push_to_local_followers
-    TimelineManager.new.async.add_post_to_local_timelines(@post)
+  def push_post
+    PostPusher.new(@post).async.push! if @post.valid?
   end
 end

@@ -1,19 +1,20 @@
 - hide_actions ||= false
-= content_tag_for(:article, post) do
+= content_tag_for(:article, post, class: 'h-entry') do
   header
-    .post-avatar
-      = avatar post.user
     ul.post-information
-      li.post-author
-        = link_to post.user.display_name, post.user.url
+      li.post-author class="p-author h-card"
+        .post-avatar
+          = avatar post.user
+        = link_to post.user.display_name, post.user.url, class: "p-name u-url"
       li.post-time
-        =' link_to l(post.published_at.to_date, format: :short),
-           day_url(year: post.published_at.year, month: post.published_at.month, day: post.published_at.day, host: post.user.domain)
-        ' &middot;
-        = link_to l(post.published_at, format: :time), post.url
+        time class="dt-published" datetime=post.published_at.iso8601
+          =' link_to l(post.published_at.to_date, format: :short),
+             day_url(year: post.published_at.year, month: post.published_at.month, day: post.published_at.day, host: post.user.domain)
+          ' &middot;
+          = link_to l(post.published_at, format: :time), post.url, class: "u-url"
       - if post.referenced_guid.present?
         li.post-referenced-url
-          = link_to post.referenced_guid.without_http, post.referenced_guid.with_http
+          = link_to post.referenced_guid.without_http, post.referenced_guid.with_http, class: "u-in-reply-to"
 
   // show referenced post if available
   - if post.referenced_post.present? && (@post.blank? || @post == post)
@@ -21,8 +22,10 @@
       .post-reference-body
         == post.referenced_post.body_html
 
-  // show actual post body
-  .post-body
+  // show actual post
+  .post-title class="p-name"
+    = post.title
+  .post-body class="e-content"
     == post.body_html
 
   - if current_user.present? && !hide_actions
