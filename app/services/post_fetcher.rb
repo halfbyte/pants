@@ -13,6 +13,8 @@
 class PostFetcher
   include Backgroundable
 
+  class InvalidData < RuntimeError ; end
+
   def initialize(url, opts = {})
     @url = expand_url(url)
     @opts = opts
@@ -27,12 +29,9 @@ class PostFetcher
 
     @json = fetch_json
 
-    if json_sane?
-      # fetch/update user first
-      UserFetcher.new(@uri.host).fetch!
-
-      # deal with post
-      @post = Post.from_json!(@json)
+    Post.transaction do
+      UserFetcher.fetch!(@uri.host)
+      @post = PostUpserter.upsert!(@json, @url)
 
       PostPusher.new(@post).push_to_local_timelines
 
@@ -75,15 +74,5 @@ class PostFetcher
         link_tag[:href]
       end
     end
-  end
-
-  def json_sane?
-    full, guid, domain, slug = %r{^https?://((.+)/(.+?))(\.json)?$}.match(@url).to_a
-
-    raise "Post JSON invalid: guid doesn't match"   if @json['guid'] != guid
-    raise "Post JSON invalid: domain doesn't match" if @json['domain'] != domain
-    raise "Post JSON invalid: slug doesn't match"   if @json['slug'] != slug
-
-    true
   end
 end

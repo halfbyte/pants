@@ -1,6 +1,10 @@
 require 'html/sanitizer'
 
 class Post < ActiveRecord::Base
+  # Disable STI
+  #
+  self.inheritance_column = nil
+
   # Scopes
   #
   scope :on_date, ->(date) { where(published_at: (date.at_beginning_of_day)..(date.at_end_of_day)) }
@@ -38,7 +42,7 @@ class Post < ActiveRecord::Base
     # Generate slug
     self.slug ||= generate_slug
 
-    # Set GUID
+    # Set/update GUID (a validation will check that this never changes)
     self.guid = "#{domain}/#{slug}"
 
     # Publish post right away
@@ -51,9 +55,29 @@ class Post < ActiveRecord::Base
     self.url ||= "http://#{guid}"
   end
 
+  # Stuff we need to do before saving, but can safely run after validations.
+  #
+  before_save do
+    # Only for posts by hosted users
+
+    if user.try(:hosted?)
+      # Count replies
+      self.number_of_replies = pings.count('DISTINCT source')
+
+      # Update edited_at if any of these attributes have changed
+      if (changed & ['body', 'body_html', 'data', 'tags', 'number_of_replies']).any?
+        self.edited_at = Time.now
+      end
+    end
+  end
+
   validate(on: :update) do
     if guid_changed?
       errors.add(:guid, "can not be changed.")
+    end
+
+    if type_changed?
+      errors.add(:type, "can not be changed.")
     end
 
     # TODO: check that URL matches GUID
@@ -70,6 +94,11 @@ class Post < ActiveRecord::Base
     presence: true,
     uniqueness: { scope: :domain }
 
+  # Post#user links this post to its author. Note that it's perfectly possible to
+  # have a post _without_ a user; eg. if the post has been pulled into your local
+  # database, but the user, for some reason, has not. It's important that if you
+  # hack around in the code, you'll take into account that #user may be nil.
+  #
   belongs_to :user,
     foreign_key: 'domain',
     primary_key: 'domain'
@@ -89,6 +118,12 @@ class Post < ActiveRecord::Base
       user.followers.hosted.find_each do |follower|
         follower.add_to_timeline(post)
       end
+    end
+  end
+
+  concerning :Types do
+    included do
+      scope :of_type, ->(type) { where(type: type) }
     end
   end
 
@@ -163,41 +198,13 @@ class Post < ActiveRecord::Base
       has_many :pings,
         dependent: :nullify
     end
+
+    def ping_sources_with_times
+      pings.group('source').order('time').pluck('DISTINCT source, min(created_at) AS time')
+    end
   end
 
   class << self
-    # The following attributes will be copied from post JSON responses
-    # into local Post instances.
-    #
-    ACCESSIBLE_JSON_ATTRIBUTES = %w{
-      guid
-      url
-      published_at
-      edited_at
-      referenced_guid
-      title
-      body
-      body_html
-      domain
-      slug
-      tags
-    }
-
-    def from_json!(json)
-      # Upsert post
-      post = transaction do
-        post = where(guid: json['guid']).first_or_initialize
-        if post.new_record? || post.edited_at < json['edited_at']
-          post.attributes = json.slice(*ACCESSIBLE_JSON_ATTRIBUTES)
-          post.save!
-        end
-
-        post
-      end
-
-      post
-    end
-
     def [](v)
       find_by(guid: v.without_http)
     end

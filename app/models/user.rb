@@ -45,6 +45,15 @@ class User < ActiveRecord::Base
     included do
       has_many :timeline_entries,
         dependent: :destroy
+
+      # `timeline_posts` returns all posts contained in the user's
+      # timeline, no matter its status (from friend/other, hidden/visible etc.)
+      # This can be used to quickly check if the user has "seen" a specific post,
+      # eg. to determine if another post is in reply to something the user has seen.
+      #
+      has_many :timeline_posts,
+        through: :timeline_entries,
+        source: :post
     end
 
     def add_to_timeline(post)
@@ -165,7 +174,7 @@ class User < ActiveRecord::Base
     def poll!
       # Never poll for hosted users.
       unless hosted? || followings.empty?
-        posts_url = URI.join(url, '/posts.json')
+        posts_url = URI.join(url, '/posts.json').to_s
         posts_json = HTTParty.get(posts_url, query: { updated_since: last_polled_at.try(:to_i) })
 
         # upsert posts in the database
@@ -176,7 +185,7 @@ class User < ActiveRecord::Base
           end
 
           # upsert post in local database
-          Post.from_json!(json)
+          PostUpserter.upsert!(json, posts_url)
         end
 
         # add posts to local followers' timelines
