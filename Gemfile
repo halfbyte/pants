@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 
 # Make sure we're running on Ruby 2.1
-ruby '2.1.2'
+# ruby '2.1.1'
 
 # Core
 gem 'rails', '4.1.4'
