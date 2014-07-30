@@ -1,5 +1,8 @@
 source 'https://rubygems.org'
 
+# Make sure we're running on Ruby 2.1
+ruby '2.1.2'
+
 # Core
 gem 'rails', '4.1.4'
 gem 'pg'
@@ -74,6 +77,7 @@ end
 group :production do
   # .env loading for production
   gem 'dotenv-deployment'
+  gem 'rails_12factor'
 end
 
 # Gems that should be installed, but will not be loaded automatically.

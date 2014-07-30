@@ -29,18 +29,43 @@ class PostFetcher
 
     @json = fetch_json
 
-    Post.transaction do
+    if @json.not_found?
+      Rails.logger.info "No post found at #{@url}"
+      # The post was not found -- if we already have a post with the given
+      # URL, we need to delete it.
+      #
+      if @post = Post[@url]
+        Rails.logger.info "Deleting existing post found for #{@url}"
+        @post.destroy
+      end
+    else
+      # The post was found, so let's fetch its author's data and upsert it!
+      #
       UserFetcher.fetch!(@uri.host)
+
+      # Upsert post in database
       @post = PostUpserter.upsert!(@json, @url)
 
+      # Push post to local timelines
       PostPusher.new(@post).push_to_local_timelines
 
+      # If a recipient was specified, add this post to their timeline
       if @opts[:recipient].present?
         @opts[:recipient].add_to_timeline(@post)
       end
 
+      # Done! Return the post.
       @post
     end
+
+    # If we have a post now and it's referencing another post, give that post a chance
+    # to update its like/reply counts.
+    if op = @post.try(:reference)
+      op.save!
+    end
+
+    # Done. Return wherever post is at now.
+    @post
   end
 
   def expand_url(url)
@@ -73,6 +98,12 @@ class PostFetcher
       if link_tag = doc.css('link[rel="alternate"][type="application/json"]').first
         link_tag[:href]
       end
+    end
+  end
+
+  class << self
+    def fetch!(*args)
+      new(*args).fetch!
     end
   end
 end

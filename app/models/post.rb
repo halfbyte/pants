@@ -12,20 +12,34 @@ class Post < ActiveRecord::Base
   scope :tagged_with, ->(tag) { where("tags @> ARRAY[?]", tag) }
   scope :referencing, ->(guid) { where("? = ANY(posts.references)", guid) }
 
+  # The `blogged` scope defines the posts that should be rendered in the user's
+  # blog and its corresponding ATOM feed. At a later point, we may make this
+  # configurable on a per-user basis.
+  #
+  scope :blogged, -> { where(type: ['pants.post']) }
+
   # Validations
   #
   before_validation do
     if user.try(:hosted?)
       if body_changed?
         Rails.logger.info "Rendering markdown for #{self}"
-        # Resolve hashtag links
-        body_with_hashtags = body.gsub(TagExtractor::REGEX) do
-          tag_url = URI.join(user.url, "/tag/#{$1.downcase}")
-          "<a href=\"#{tag_url}\" class=\"hashtag p-category\">##{$1}</a>"
-        end
 
         # Render body to HTML
-        self.body_html = Formatter.new(body_with_hashtags).complete.to_s
+        begin
+          self.body_html = Formatter.new(body)
+            .markdown
+            .autolink
+            .autolink_hashtags_and_mentions(user)
+            .sanitize.to_s
+        rescue Exception => e
+          if Rails.env.production?
+            Appsignal.send_exception(e) if defined?(Appsignal)
+            errors.add(:body, "could not be rendered to HTML. Sorry!")
+          else
+            raise
+          end
+        end
       end
     else
       # User is a remote user -- let's sanitize the HTML
@@ -62,7 +76,7 @@ class Post < ActiveRecord::Base
 
     if user.try(:hosted?)
       # Count replies
-      self.number_of_replies = pings.count('DISTINCT source')
+      self.number_of_replies = received_pings.count('DISTINCT source')
 
       # Update edited_at if any of these attributes have changed
       if (changed & ['body', 'body_html', 'data', 'tags', 'number_of_replies']).any?
@@ -182,7 +196,7 @@ class Post < ActiveRecord::Base
     # Make sure referenced GUID is stored without protocol
     #
     def referenced_guid=(v)
-      write_attribute(:referenced_guid, v.present? ? v.strip.without_http : nil)
+      write_attribute(:referenced_guid, v.present? ? v.strip.to_guid : nil)
     end
 
     # Returns the referenced post IF it's available in the local
@@ -191,22 +205,36 @@ class Post < ActiveRecord::Base
     def referenced_post
       Post.where(guid: referenced_guid).includes(:user).first if referenced_guid.present?
     end
+
+    # Returns a list of URLs referencing this post, sourced by the pings
+    # this post has received.
+    #
+    def referenced_by
+      received_pings.pluck('DISTINCT source')
+    end
   end
 
   concerning :Pings do
     included do
-      has_many :pings,
-        dependent: :nullify
+      has_many :received_pings,
+        class_name: 'Ping',
+        foreign_key: 'target_guid',
+        primary_key: 'guid'
+
+      has_many :sent_pings,
+        class_name: 'Ping',
+        foreign_key: 'source_guid',
+        primary_key: 'guid'
     end
 
     def ping_sources_with_times
-      pings.group('source').order('time').pluck('DISTINCT source, min(created_at) AS time')
+      received_pings.group('source').order('time').pluck('DISTINCT source, min(created_at) AS time')
     end
   end
 
   class << self
     def [](v)
-      find_by(guid: v.without_http)
+      find_by(guid: v.to_guid)
     end
   end
 end
