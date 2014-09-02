@@ -16,7 +16,7 @@ gem 'lograge'
 # .env configuration loading
 gem 'dotenv'
 gem 'dotenv-rails'
-gem 'dotenv-deployment'
+# gem 'dotenv-deployment'
 
 # Frontend
 gem 'sass-rails', '~> 4.0.3'
@@ -72,10 +72,6 @@ end
 # Development only.
 group :development do
   # Capistrano
-  gem 'capistrano-rails', require: false
-  gem 'capistrano-chruby', require: false
-  gem 'capistrano-bundler', require: false
-
   # Nicer error messages
   gem 'better_errors'
   gem 'binding_of_caller'
