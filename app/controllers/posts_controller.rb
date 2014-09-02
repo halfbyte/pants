@@ -77,14 +77,27 @@ class PostsController < ApplicationController
 
     # If we haven't seen this post yet, or its last update was more than 1h ago, fetch it
     if @post.nil? || @post.updated_at < 1.hour.ago
-      @post = PostFetcher.new(params[:url]).fetch!
+      @post = PostFetcher.perform(params[:url])
     end
 
     render 'show'
   end
 
   def new
-    @post.referenced_guid = params[:referenced_guid]
+    # Deal with referenced URL/GUID parameters
+    if params[:referenced_url]
+      @post.referenced_url = params[:referenced_url]
+    elsif params[:referenced_guid]
+      # LEGACY: handle referenced_guid parameter that may be sent by existing bookmarklets
+      @post.referenced_url = params[:referenced_guid].with_http
+    end
+
+    # If referenced post is available locally, quote its markdown body
+    if (op = @post.reference) && op.body.present?
+      @post.body = op.body.split("\n").map { |line| "> #{line}" }.join("\n")
+      @post.body << "\n"
+    end
+
     respond_with @post
   end
 
@@ -125,19 +138,19 @@ class PostsController < ApplicationController
 private
 
   def post_params
-    params.require(:post).permit(:type, :body, :body_html, :referenced_guid)
+    params.require(:post).permit(:type, :body, :body_html, :referenced_url)
   end
 
   def fetch_referenced_posts
     if @post.valid?
       if @post.referenced_guid.present?
         # Fetch referenced post
-        PostFetcher.new(@post.referenced_guid.with_http).async.fetch!
+        PostFetcher.async(@post.referenced_guid.with_http)
       end
     end
   end
 
   def push_post
-    PostPusher.new(@post).async.push! if @post.valid?
+    PostPusher.async(@post) if @post.valid?
   end
 end

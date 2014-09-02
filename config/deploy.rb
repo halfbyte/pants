@@ -1,5 +1,3 @@
-# require 'appsignal/capistrano' rescue LoadError
-
 require 'dotenv'
 Dotenv.load
 
@@ -15,7 +13,10 @@ set :deploy_via, :remote_cache
 set :home, '/home/halfbyte'
 
 # Default branch is :master
-# ask :branch, proc { `git rev-parse --abbrev-ref HEAD`.chomp }.call
+current_branch = proc { `git rev-parse --abbrev-ref HEAD`.chomp }.call
+if current_branch != 'master'
+  ask :branch, current_branch
+end
 
 # Default deploy_to directory is /var/www/my_app
 set :deploy_to, '/var/www/virtual/halfbyte/rails/pants'
@@ -33,7 +34,7 @@ set :log_level, :info
 # set :pty, true
 
 # Default value for :linked_files is []
-set :linked_files, %w{.env.production}
+set :linked_files, %w{.env.production config/initializers/action_mailer.rb}
 
 # Default value for linked_dirs is []
 set :linked_dirs, %w{log tmp/pids tmp/cache tmp/sockets vendor/bundle public/system}

@@ -10,6 +10,13 @@ gem 'quiet_assets'
 gem 'passenger'
 gem 'rack-cache', :require => 'rack/cache'
 gem 'timers'
+gem 'exception_notification'
+gem 'lograge'
+
+# .env configuration loading
+gem 'dotenv'
+gem 'dotenv-rails'
+gem 'dotenv-deployment'
 
 # Frontend
 gem 'sass-rails', '~> 4.0.3'
@@ -23,6 +30,7 @@ gem 'simple_form'
 gem 'slodown', github: 'hmans/slodown'
 gem 'font-awesome-rails'
 gem 'kaminari'
+gem 'microformats2'
 
 # Binary asset handling
 gem 'dragonfly'
@@ -49,21 +57,28 @@ gem "sentry-raven", :git => "https://github.com/getsentry/raven-ruby.git"
 group :test, :development do
   # Spring application reloader
   gem 'spring'
-  gem "spring-commands-rspec"
+  gem 'spring-commands-rspec'
 
   # Debugging
   gem 'pry-rails'
   gem 'awesome_print'
-  gem 'better_errors'
-  gem 'binding_of_caller'
 
   # RSpec & friends
   gem 'rspec-rails'
   gem 'factory_girl_rails'
   gem 'ffaker'
+end
 
-  # .env loading
-  gem 'dotenv-rails'
+# Development only.
+group :development do
+  # Capistrano
+  gem 'capistrano-rails', require: false
+  gem 'capistrano-chruby', require: false
+  gem 'capistrano-bundler', require: false
+
+  # Nicer error messages
+  gem 'better_errors'
+  gem 'binding_of_caller'
 end
 
 # Testing only.

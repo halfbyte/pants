@@ -1,10 +1,15 @@
-## This is still in very early-stage development. If you use this software today, it _will_ destroy you.
+#### A couple of weeks ago, my Twitter timeline stopped updating. They never fixed it, so I built my own decentrlized (micro|macro)blogging platform. Those bastards! Time to get some #pants on.
 
-Please follow [hmans.io](http://hmans.io) for updates.
+----
 
+#### Noteworthy Links
 
-### Dependencies
+* [hmans.io](http://hmans.io) for development news.
+* [Project Home](https://github.com/hmans/pants) on Github.
+* [Issues](https://github.com/hmans/pants/issues), [Releases](https://github.com/hmans/pants/releases) and [Wiki](https://github.com/hmans/pants/wiki)
 
-* Ruby 2.1.1
+#### Dependencies
+
+* Ruby 2.0.0 and up (currently pegged to 2.1.2)
 * PostgreSQL 9.3
 * ImageMagick

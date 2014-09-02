@@ -8,6 +8,22 @@ class ApplicationController < ActionController::Base
   #
   respond_to :html
 
+  # Note some extra data to be recorded by lograge.
+  #
+  def append_info_to_payload(payload)
+    super
+    payload[:host] = request.host
+  end
+
+  # Fun with threads! Check if this process' worker thread for scheduled
+  # tasks is alive.
+  #
+  if Rails.env.production?
+    before_filter do
+      ScheduledTasks.keepalive!
+    end
+  end
+
   concerning :ErrorHandling do
     included do
       rescue_from ActiveRecord::RecordNotFound, with: :render_404
@@ -32,7 +48,12 @@ class ApplicationController < ActionController::Base
 
   before_filter do
     if current_site.blank?
-      redirect_to Pants.config.server.unknown_site_redirect_url
+      if Rails.env.production?
+        redirect_to ENV['PANTS_FALLBACK_URL'] || User.first.domain.with_http
+      else
+        # Enable host-less development access
+        @current_site = User.first
+      end
     elsif current_site.domain != request.host
       redirect_to(host: current_site.domain, status: 302)
     end

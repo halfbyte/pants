@@ -1,11 +1,7 @@
 footer role="primary"
-  p <strong>#{link_to current_site.display_name, :root}</strong> is running on
-    <strong>#{link_to "#pants", "https://github.com/hmans/pants"}</strong>, the distributed social blogging network... thing.
-
   p
-    - if Pants.config.server.tagline.present?
-      ' #{Pants.config.server.tagline} &middot;
+    - if ENV['PANTS_TAGLINE'].present?
+      ' #{raw ENV['PANTS_TAGLINE']} &middot;
     - if can?(:manage, :server)
       ' #{link_to "Server Admin", :server} &middot;
-    - if ENV['PANTS_VERSION']
-      ' Version: #{link_to ENV['PANTS_VERSION'], "https://github.com/hmans/pants/commits/#{ENV['PANTS_VERSION']}"}
+    =' link_to "#pants #{Pants::VERSION}", "https://github.com/hmans/pants/releases/tag/#{Pants::VERSION}"

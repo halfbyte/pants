@@ -23,38 +23,38 @@ class Post < ActiveRecord::Base
   before_validation do
     if user.try(:hosted?)
       if body_changed?
-        Rails.logger.info "Rendering markdown for #{self}"
-
         # Render body to HTML
         begin
+          Rails.logger.info "Rendering markdown for #{self}"
+
           self.body_html = Formatter.new(body)
             .markdown
             .autolink
             .autolink_hashtags_and_mentions(user)
             .sanitize.to_s
+
+          # Extract and save title
+          self.title = to_title.try(:truncate, 200)
+
+          # Extract and save tags
+          self.tags = TagExtractor.extract_tags(HTML::FullSanitizer.new.sanitize(body_html)).map(&:downcase)
         rescue Exception => e
           if Rails.env.production?
-            Appsignal.send_exception(e) if defined?(Appsignal)
+            ExceptionNotifier.notify_exception(e)
             errors.add(:body, "could not be rendered to HTML. Sorry!")
           else
             raise
           end
         end
       end
+
+      # Generate slug
+      self.slug ||= generate_slug
     else
       # User is a remote user -- let's sanitize the HTML
       Rails.logger.info "Sanitizing HTML for #{self}"
       self.body_html = Formatter.new(body_html).sanitize.to_s
     end
-
-    # Extract and save tags
-    self.tags = TagExtractor.extract_tags(HTML::FullSanitizer.new.sanitize(body_html)).map(&:downcase)
-
-    # Extract and save title
-    self.title = to_title.try(:truncate, 200)
-
-    # Generate slug
-    self.slug ||= generate_slug
 
     # Set/update GUID (a validation will check that this never changes)
     self.guid = "#{domain}/#{slug}"
@@ -64,6 +64,11 @@ class Post < ActiveRecord::Base
 
     # Default editing timestamp to publishing timestamp
     self.edited_at ||= published_at
+
+    # LEGACY: Copy referenced_guid to referenced_url
+    if read_attribute(:referenced_url).nil? && referenced_guid.present?
+      write_attribute(:referenced_url, referenced_guid.with_http)
+    end
 
     # Default URL to http://<guid>
     self.url ||= "http://#{guid}"
@@ -97,7 +102,7 @@ class Post < ActiveRecord::Base
     # TODO: check that URL matches GUID
   end
 
-  validates :body,
+  validates :body_html,
     presence: true
 
   validates :guid, :url,
@@ -197,6 +202,19 @@ class Post < ActiveRecord::Base
     #
     def referenced_guid=(v)
       write_attribute(:referenced_guid, v.present? ? v.strip.to_guid : nil)
+    end
+
+    # When setting the referenced URL, also set the GUID.
+    #
+    def referenced_url=(v)
+      self.referenced_guid = v.try(:to_guid)
+      write_attribute(:referenced_url, v)
+    end
+
+    # Legacy support: When no referenced_url is stored, return the guid with http.
+    #
+    def referenced_url
+      read_attribute(:referenced_url) || referenced_guid.try(:with_http)
     end
 
     # Returns the referenced post IF it's available in the local

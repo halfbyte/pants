@@ -10,7 +10,9 @@ module ApplicationHelper
   end
 
   def avatar_image_tag(user, opts = {})
-    image_tag(user.local_thumbnail.present? ? user.local_thumbnail.url : '1x1.png', class: "u-photo")
+    image_tag(user.local_thumbnail.present? ? user.local_thumbnail.url : '1x1.png',
+      alt: user.domain,
+      class: "u-photo")
   end
 
   def navigation_entry(title, url, opts = {})
@@ -20,5 +22,9 @@ module ApplicationHelper
     content_tag(:li, class: (active ? 'active' : nil)) do
       link_to(title, url, opts)
     end
+  end
+
+  def show_referenced_post?(post)
+    post.referenced_post.present? && !post.body_html.include?('<blockquote>')
   end
 end

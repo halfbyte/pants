@@ -11,18 +11,17 @@ initPage = ->
   #
   $('[autofocus="autofocus"]').focus()
 
-  # When images fail loading, replace them with our magic transparent pixel.
-  #
-  $("img").error ->
-    $(this).attr("src", "/images/1x1.png")
-
   # Run dem trackers if available.
   #
   _gs('track') if (_gs?)
   ga('send', 'pageview') if (ga?)
 
+expandElement = (e) ->
+  el = $(this).data('expand')
+  $(el).toggleClass('expanded')
+  e.preventDefault()
 
-$(document).on 'page:change', initPage
-
-$ ->
-  initPage()
+$(document)
+  .on 'page:load', initPage
+  .on 'ready', initPage
+  .on 'click', 'a[data-expand]', expandElement

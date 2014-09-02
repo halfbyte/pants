@@ -1,1 +1,1 @@
-pants: bundle exec rails server -p $PORT
+web: bundle exec puma -p $PORT -w 2 -t 2:8
