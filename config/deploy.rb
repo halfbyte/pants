@@ -2,7 +2,7 @@ require 'dotenv'
 Dotenv.load
 
 # config valid only for Capistrano 3.1
-lock '3.2.1'
+lock '3.4.0'
 
 set :application, 'pants'
 set :stages, ["production"]
@@ -71,9 +71,9 @@ EOF
       upload! StringIO.new(log_script), "#{fetch :home}/etc/run-rails-#{fetch :application}/log/run"
       execute "chmod", "+x #{fetch :home}/etc/run-rails-#{fetch :application}/run"
       execute "chmod", "+x #{fetch :home}/etc/run-rails-#{fetch :application}/log/run"
-      execute "ln", "-nfs #{fetch :home}/etc/run-rails-#{fetch :application} #{fetch :home}/service/rails-#{fetch :application}"      
+      execute "ln", "-nfs #{fetch :home}/etc/run-rails-#{fetch :application} #{fetch :home}/service/rails-#{fetch :application}"
     end
-    
+
 
 
   end
@@ -88,7 +88,7 @@ RewriteRule ^(.*)$ http://localhost:#{fetch :passenger_port}/$1 [P]
 EOF
       path = fetch(:domain) ? "/var/www/virtual/#{fetch :user}/#{fetch :domain}" : "#{fetch :home}/html"
       on roles :web do
-      
+
         execute "mkdir", "-p #{path}"
         upload! StringIO.new(htaccess), "#{path}/.htaccess"
         execute "chmod", "+r #{path}/.htaccess"
@@ -114,7 +114,7 @@ namespace :deploy do
       execute "svc", "-du #{fetch :home}/service/rails-#{fetch :application}"
     end
   end
-  
+
   after :publishing, :restart
 
   # after :restart, :clear_cache do
