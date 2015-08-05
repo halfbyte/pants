@@ -4,7 +4,7 @@ source 'https://rubygems.org'
 # ruby '2.1.1'
 
 # Core
-gem 'rails', '4.1.4'
+gem 'rails', '4.1.12'
 gem 'pg'
 gem 'quiet_assets'
 gem 'passenger'
@@ -27,7 +27,7 @@ gem 'turbolinks'
 gem 'slim-rails'
 gem 'compass-rails'
 gem 'simple_form'
-gem 'slodown', github: 'hmans/slodown'
+gem 'slodown', github: 'hmans/slodown', branch: 'master'
 gem 'font-awesome-rails'
 gem 'kaminari'
 gem 'microformats2'
@@ -75,6 +75,9 @@ group :development do
   # Nicer error messages
   gem 'better_errors'
   gem 'binding_of_caller'
+
+  # Log cleanup
+  gem 'quiet_assets'
 end
 
 # Testing only.

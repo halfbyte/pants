@@ -1,7 +1,9 @@
 class Service
   class ServiceLogger < Logger
+    attr_accessor :klass
+
     def format_message(severity, timestamp, progname, msg)
-      "#{timestamp.to_formatted_s(:db)} #{severity} #{msg}\n"
+      "#{timestamp.to_formatted_s(:db)} #{severity} #{klass.to_s} #{msg}\n"
     end
   end
 
@@ -16,8 +18,10 @@ class Service
   def perform!(*args)
     with_database do
       with_exception_notifications(*args) do
-        with_transaction do
-          perform(*args)
+        with_network_failure_handling do
+          with_transaction do
+            perform(*args)
+          end
         end
       end
     end
@@ -25,6 +29,12 @@ class Service
 
   def perform_async(*args)
     perform_sync(*args)
+  end
+
+  def with_network_failure_handling
+    yield
+  rescue Timeout::Error, SocketError, OpenSSL::SSL::SSLError => e
+    logger.error "NETWORK FAILURE: #{e}"
   end
 
   def with_exception_notifications(*original_args, &blk)
@@ -75,9 +85,11 @@ class Service
 
     def logger
       @logger ||= begin
-        log = File.open("#{Rails.root}/log/#{self.to_s.underscore}.log", 'a')
+        log = File.open("#{Rails.root}/log/services.log", 'a')
         log.sync = true
-        ServiceLogger.new(log)
+        logger = ServiceLogger.new(log)
+        logger.klass = self
+        logger
       end
     end
   end
