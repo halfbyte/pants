@@ -1,5 +1,5 @@
 require 'raven'
 
 Raven.configure do |config|
-  config.dsn = 'http://2d3c28f0133e440cb896355610af8348:db02b3b7a7ae48289e2bec3ff6f109ce@sentry.halfbyte.org/2'
+  config.dsn = 'https://12e53492a00a413ebdf3fd55c2b29696:da543fa648174424b315b568430e43b2@app.getsentry.com/49699'
 end
