@@ -77,7 +77,6 @@ group :development do
   gem 'binding_of_caller'
 
   # Log cleanup
-  gem 'quiet_assets'
 end
 
 # Testing only.
